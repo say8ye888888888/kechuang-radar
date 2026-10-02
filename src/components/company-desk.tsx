@@ -28,11 +28,12 @@ export type Peer = {
   title: string
 }
 
-function decisionVariant(product: ProductCode) {
-  if (product === "patent-loan") return "default" as const
-  if (product === "hold") return "destructive" as const
-  if (product === "decline") return "secondary" as const
-  return "outline" as const
+const headerBadgeClass: Record<ProductCode, string> = {
+  "patent-loan": "border-transparent bg-[#9d1c2f] text-white",
+  "credit-loan": "border-transparent bg-[#f4e4c4] text-[#1f1a17]",
+  investigate: "border-[#d9c7ba] bg-transparent text-[#f8f1ea]",
+  hold: "border-transparent bg-[#fff1f2] text-[#9f1239]",
+  decline: "border-transparent bg-[#4a403b] text-[#f8f1ea]",
 }
 
 export function CompanyDesk({
@@ -74,7 +75,10 @@ export function CompanyDesk({
           <div className="text-4xl font-semibold tabular-nums">{evaluation.composite}</div>
           <div className="mt-1 text-sm text-[#d9c7ba]">科技信用分 · 等级 {evaluation.grade}</div>
           <div className="mt-3">
-            <Badge variant={decisionVariant(evaluation.decision.product)}>
+            <Badge
+              variant="outline"
+              className={`h-auto px-2.5 py-1 text-sm ${headerBadgeClass[evaluation.decision.product]}`}
+            >
               {evaluation.decision.title}
             </Badge>
           </div>
