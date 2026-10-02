@@ -77,13 +77,13 @@ export function Queue({ items }: { items: Evaluation[] }) {
       ) : (
         <>
           <div className="hidden md:block">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>企业</TableHead>
-                  <TableHead>产业</TableHead>
-                  <TableHead>科技信用分</TableHead>
-                  <TableHead>预审结论</TableHead>
+                  <TableHead className="w-[22%]">企业</TableHead>
+                  <TableHead className="w-[16%]">产业</TableHead>
+                  <TableHead className="w-[12%]">科技信用分</TableHead>
+                  <TableHead className="w-[14%]">预审结论</TableHead>
                   <TableHead>主要卡点</TableHead>
                 </TableRow>
               </TableHeader>
@@ -108,7 +108,7 @@ export function Queue({ items }: { items: Evaluation[] }) {
                         {productLabel[item.decision.product]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-xs text-[#3f342e]">
+                    <TableCell className="whitespace-normal text-[#3f342e]">
                       {item.riskNotes[0]?.detail}
                     </TableCell>
                   </TableRow>

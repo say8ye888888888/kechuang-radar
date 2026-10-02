@@ -76,7 +76,7 @@ export function EvidenceGraph({
   return (
     <div className="overflow-x-auto">
       <svg viewBox={`0 0 980 ${height}`} className="h-auto min-w-[760px]" role="img">
-        <title>{company.shortName}的专利知识图谱</title>
+        <title>{`${company.shortName}的专利知识图谱`}</title>
         <line
           x1="188"
           y1="48"
