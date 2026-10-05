@@ -1,17 +1,17 @@
 import Link from "next/link"
 import { Queue } from "@/components/queue"
 import { buttonVariants } from "@/components/ui/button"
-import { catalog } from "@/lib/catalog"
+import { listEvaluations } from "@/server/services/evaluation-service"
 
-const counts = {
-  patent: catalog.filter((item) => item.decision.product === "patent-loan").length,
-  credit: catalog.filter((item) => item.decision.product === "credit-loan").length,
-  hold: catalog.filter((item) => item.decision.product === "hold").length,
-  investigate: catalog.filter((item) => item.decision.product === "investigate").length,
-  decline: catalog.filter((item) => item.decision.product === "decline").length,
-}
-
-export default function HomePage() {
+export default async function HomePage() {
+  const catalog = await listEvaluations()
+  const counts = {
+    patent: catalog.filter((item) => item.decision.product === "patent-loan").length,
+    credit: catalog.filter((item) => item.decision.product === "credit-loan").length,
+    hold: catalog.filter((item) => item.decision.product === "hold").length,
+    investigate: catalog.filter((item) => item.decision.product === "investigate").length,
+    decline: catalog.filter((item) => item.decision.product === "decline").length,
+  }
   return (
     <div className="space-y-6">
       <section className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
@@ -41,9 +41,9 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <Point title="评分卡出结论" text="技术、持续、产业、财务、风险五维加权。财务证据缺失时封顶，避免空数据堆出高分。" />
+        <Point title="评分卡出结论" text="技术、持续、产业、财务、风险五维加权。偿债材料不完整时只输出 innovation-only 科技预评分，并转补充调查。" />
         <Point title="图谱留证据" text="企业、专利、IPC、发明人和产业方向连在同一张图上。每条产品建议都能点回具体权利。" />
-        <Point title="模型不改结论" text="大模型只接收证据包。权属争议会挡住高分企业，软著不能单独变成质押物。" />
+        <Point title="模型不改结论" text="大模型只接收证据包。核心技术的企业级争议会挡住高分企业，单项资产瑕疵只排除对应质押物。" />
       </section>
 
       <section className="rounded-2xl bg-white p-4 ring-1 ring-[#eadfd4] sm:p-5">

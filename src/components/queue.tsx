@@ -82,7 +82,7 @@ export function Queue({ items }: { items: Evaluation[] }) {
                 <TableRow>
                   <TableHead className="w-[22%]">企业</TableHead>
                   <TableHead className="w-[16%]">产业</TableHead>
-                  <TableHead className="w-[12%]">科技信用分</TableHead>
+                  <TableHead className="w-[12%]">科技预评分</TableHead>
                   <TableHead className="w-[14%]">预审结论</TableHead>
                   <TableHead>主要卡点</TableHead>
                 </TableRow>

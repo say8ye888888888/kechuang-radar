@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { CompanyDesk } from "@/components/company-desk"
 import { buttonVariants } from "@/components/ui/button"
-import { catalog, getEvaluation } from "@/lib/catalog"
+import { getEvaluation, listEvaluations } from "@/server/services/evaluation-service"
 
 export async function generateMetadata({
   params,
@@ -10,7 +10,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const evaluation = getEvaluation(id)
+  const evaluation = await getEvaluation(id)
   if (!evaluation) return { title: "未找到企业" }
   return { title: evaluation.company.shortName }
 }
@@ -21,7 +21,7 @@ export default async function CompanyPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const evaluation = getEvaluation(id)
+  const evaluation = await getEvaluation(id)
   if (!evaluation) {
     return (
       <div className="mx-auto max-w-lg py-16 text-center">
@@ -36,7 +36,7 @@ export default async function CompanyPage({
     )
   }
 
-  const peers = catalog.map((item) => ({
+  const peers = (await listEvaluations()).map((item) => ({
     id: item.company.id,
     shortName: item.company.shortName,
     composite: item.composite,

@@ -47,6 +47,10 @@ export function CompanyDesk({
   const { company } = evaluation
   const pledgeable = new Set(evaluation.pledgeableIds)
   const focusedRight = company.rights.find((right) => right.id === focus)
+  const focusedEvidence = evaluation.evidencePack.evidenceRecords?.find(
+    (record) => record.id === focus,
+  )
+  const financeComplete = evaluation.evidenceStatus?.financeStatus === "complete"
 
   return (
     <div className="space-y-5">
@@ -73,7 +77,10 @@ export function CompanyDesk({
         </div>
         <div className="sm:text-right">
           <div className="text-4xl font-semibold tabular-nums">{evaluation.composite}</div>
-          <div className="mt-1 text-sm text-[#d9c7ba]">科技信用分 · 等级 {evaluation.grade}</div>
+          <div className="mt-1 text-sm text-[#d9c7ba]">
+            {evaluation.scoreScope === "innovation-only" ? "科技预评分（偿债待补）" : "科技预评分"} · 等级{" "}
+            {evaluation.grade}
+          </div>
           <div className="mt-3">
             <Badge
               variant="outline"
@@ -84,6 +91,39 @@ export function CompanyDesk({
           </div>
         </div>
       </header>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <SummaryCard
+          eyebrow="证据状态"
+          title={financeComplete ? "偿债材料已录入" : "偿债材料待补"}
+          text={
+            financeComplete
+              ? `证据覆盖 ${evaluation.evidenceStatus?.coverage ?? 0}%，仍需人工核验原件。`
+              : `当前仅形成科技画像，缺 ${evaluation.evidenceStatus?.missingMaterials.length ?? 0} 类偿债材料。`
+          }
+          tone={financeComplete ? "normal" : "watch"}
+        />
+        <SummaryCard
+          eyebrow="科技预评分"
+          title={`${evaluation.composite} 分 · ${evaluation.grade} 级`}
+          text={
+            evaluation.scoreScope === "innovation-only"
+              ? "偿债维度未评分，结果只用于技术与创新线索排序。"
+              : "五维均有演示证据；分数不是违约概率、额度或估值。"
+          }
+        />
+        <SummaryCard
+          eyebrow="下一步"
+          title={evaluation.decision.title}
+          text={evaluation.decision.reason}
+          tone={evaluation.decision.eligible ? "normal" : "watch"}
+        />
+      </section>
+
+      <p className="rounded-lg border border-[#eadfd4] bg-[#fbf6f1] px-3 py-2 text-xs leading-5 text-[#6f655e]">
+        {evaluation.meta?.ruleVersion ?? "演示规则"} · {evaluation.meta?.scoreVersion ?? "演示评分"} ·
+        评估时点 {evaluation.meta?.asOf ?? "未记录"}。演示口径，非工行制度；产品适配不等于授信通过。
+      </p>
 
       <section className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
@@ -179,6 +219,8 @@ export function CompanyDesk({
                     ? "这件权利进入了可质押清单。"
                     : "这件权利没有进入可质押清单。")
                 }`
+              : focusedEvidence
+                ? `${focusedEvidence.title}：${focusedEvidence.fact} 来源：${focusedEvidence.sourceLabel}；证据状态：${focusedEvidence.status}；时点：${focusedEvidence.asOf}。`
               : "点选图谱或下方编号，查看这件权利为什么进入或没有进入质押清单。红色描边表示权属争议，虚线色块表示在审或失效。"}
           </p>
         </CardContent>
@@ -326,11 +368,37 @@ export function CompanyDesk({
       </Card>
 
       <details className="rounded-xl bg-white p-4 ring-1 ring-[#eadfd4]">
-        <summary className="cursor-pointer text-sm font-medium">查看送入大模型的证据包</summary>
+          <summary className="cursor-pointer text-sm font-medium">查看冻结的报告证据包</summary>
         <pre className="mt-3 overflow-x-auto text-xs leading-5 text-[#3f342e]">
           {JSON.stringify(evaluation.evidencePack, null, 2)}
         </pre>
       </details>
+    </div>
+  )
+}
+
+function SummaryCard({
+  eyebrow,
+  title,
+  text,
+  tone = "normal",
+}: {
+  eyebrow: string
+  title: string
+  text: string
+  tone?: "normal" | "watch"
+}) {
+  return (
+    <div
+      className={`rounded-xl border px-4 py-3 ${
+        tone === "watch"
+          ? "border-[#e2b7bd] bg-[#fff6f6]"
+          : "border-[#eadfd4] bg-white"
+      }`}
+    >
+      <p className="text-xs tracking-wide text-[#9d1c2f]">{eyebrow}</p>
+      <p className="mt-1 font-semibold">{title}</p>
+      <p className="mt-1 text-sm leading-6 text-[#5f554e]">{text}</p>
     </div>
   )
 }

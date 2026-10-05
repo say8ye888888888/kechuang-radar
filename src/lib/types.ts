@@ -2,6 +2,42 @@ export type IpKind = "invention" | "utility" | "design" | "software"
 
 export type IpStatus = "active" | "pending" | "lapsed" | "invalid"
 
+/** `reported` means a source has been supplied; only `verified` clears a
+ * legal-status gate for the demo collateral path. */
+export type VerificationState = "verified" | "reported" | "unknown"
+
+export type DatasetKind = "demo" | "public"
+
+export type FinanceStatus = "complete" | "partial" | "missing"
+
+export type EvidenceRecord = {
+  id: string
+  type: "patent" | "finance" | "qualification" | "industry" | "risk" | "note" | "rule"
+  title: string
+  fact: string
+  sourceLabel: string
+  sourceUrl?: string
+  observedAt: string
+  asOf: string
+  status: VerificationState
+  demo?: boolean
+}
+
+export type FinancialProfile = {
+  revenueGrowth: number | null
+  operatingCashFlow: number | null
+  debtRatio: number | null
+  currentRatio: number | null
+  shortTermDebt: number | null
+  receivablesRatio: number | null
+  customerConcentration: number | null
+  dueDebt: number | null
+  interestDue: number | null
+  asOf: string
+  evidenceIds: string[]
+  synthetic?: boolean
+}
+
 export type Qualification = "hightech" | "specialized" | "littleGiant"
 
 export type RevenueBand = "unknown" | "lt20m" | "20to60m" | "60to150m" | "gt150m"
@@ -29,6 +65,10 @@ export type IpRight = {
   ownershipClear: boolean
   remainingYears: number
   dispute?: string
+  isCore?: boolean
+  disputeSeverity?: "asset" | "enterprise"
+  verificationState?: VerificationState
+  evidenceIds?: string[]
 }
 
 export type Note = {
@@ -52,6 +92,9 @@ export type CompanyInput = {
   summary: string
   rights: IpRight[]
   notes: Note[]
+  dataset?: DatasetKind
+  financials?: FinancialProfile
+  evidence?: EvidenceRecord[]
 }
 
 export type Factor = {
@@ -83,6 +126,7 @@ export type RuleCheck = {
   label: string
   pass: boolean
   detail: string
+  reasonCode?: string
 }
 
 export type RiskNote = {
@@ -96,6 +140,9 @@ export type Decision = {
   product: ProductCode
   title: string
   reason: string
+  reasonCode?: string
+  eligible?: boolean
+  missingMaterials?: string[]
 }
 
 export type ReportParagraph = {
@@ -127,6 +174,15 @@ export type EvidencePack = {
     year: number
     dispute?: string
   }[]
+  evaluationId?: string
+  asOf?: string
+  scoreVersion?: string
+  ruleVersion?: string
+  dataSnapshotId?: string
+  scoreScope?: "full" | "innovation-only"
+  financeStatus?: FinanceStatus
+  missingMaterials?: string[]
+  evidenceRecords?: EvidenceRecord[]
 }
 
 export type Evaluation = {
@@ -141,4 +197,22 @@ export type Evaluation = {
   report: ReportBlock[]
   actions: string[]
   evidencePack: EvidencePack
+  meta?: {
+    evaluationId: string
+    asOf: string
+    createdAt: string
+    scoreVersion: string
+    ruleVersion: string
+    dataSnapshotId: string
+    schemaVersion: string
+    demo: boolean
+  }
+  evidenceStatus?: {
+    coverage: number
+    financeStatus: FinanceStatus
+    unknownItems: string[]
+    missingMaterials: string[]
+    hardStops: string[]
+  }
+  scoreScope?: "full" | "innovation-only"
 }
