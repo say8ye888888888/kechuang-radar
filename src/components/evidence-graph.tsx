@@ -1,6 +1,7 @@
 "use client"
 
-import { kindLabel, statusLabel } from "@/lib/labels"
+import { displayRightId } from "@/lib/display"
+import { statusLabel } from "@/lib/labels"
 import type { CompanyInput } from "@/lib/types"
 
 function tone(kind: string, status: string, dispute?: string) {
@@ -170,7 +171,7 @@ export function EvidenceGraph({
               w={260}
               h={48}
               title={right.title}
-              subtitle={`${right.id} · ${kindLabel[right.kind]} · ${statusLabel[right.status]}`}
+              subtitle={`${displayRightId(right.id)} · ${statusLabel[right.status]}`}
               fill={color.fill}
               stroke={color.stroke}
               muted={dim(right.id)}

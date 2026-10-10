@@ -15,18 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { kindLabel, productLabel, qualLabel, revenueLabel, statusLabel } from "@/lib/labels"
-import { modelContract } from "@/lib/score"
+import { displayRightId, displayText } from "@/lib/display"
+import { kindLabel, qualLabel, revenueLabel, statusLabel } from "@/lib/labels"
 import type { Evaluation, ProductCode } from "@/lib/types"
-
-export type Peer = {
-  id: string
-  shortName: string
-  composite: number
-  grade: string
-  product: ProductCode
-  title: string
-}
 
 const headerBadgeClass: Record<ProductCode, string> = {
   "patent-loan": "border-transparent bg-[#9d1c2f] text-white",
@@ -36,22 +27,20 @@ const headerBadgeClass: Record<ProductCode, string> = {
   decline: "border-transparent bg-[#4a403b] text-[#f8f1ea]",
 }
 
-export function CompanyDesk({
-  evaluation,
-  peers,
-}: {
-  evaluation: Evaluation
-  peers: Peer[]
-}) {
+export function CompanyDesk({ evaluation }: { evaluation: Evaluation }) {
   const [focus, setFocus] = useState<string | null>(null)
   const { company } = evaluation
   const pledgeable = new Set(evaluation.pledgeableIds)
   const focusedRight = company.rights.find((right) => right.id === focus)
+  const focusedEvidence = evaluation.evidencePack.evidenceRecords?.find(
+    (record) => record.id === focus,
+  )
+  const financeComplete = evaluation.evidenceStatus?.financeStatus === "complete"
 
   return (
     <div className="space-y-5">
       <Link href="/" className="text-sm text-[#9d1c2f] hover:underline">
-        返回预审队列
+        返回待预审
       </Link>
 
       <header className="flex flex-col gap-4 rounded-2xl bg-[#1c1412] px-5 py-5 text-[#f8f1ea] sm:flex-row sm:items-end sm:justify-between">
@@ -73,7 +62,10 @@ export function CompanyDesk({
         </div>
         <div className="sm:text-right">
           <div className="text-4xl font-semibold tabular-nums">{evaluation.composite}</div>
-          <div className="mt-1 text-sm text-[#d9c7ba]">科技信用分 · 等级 {evaluation.grade}</div>
+          <div className="mt-1 text-sm text-[#d9c7ba]">
+            {evaluation.scoreScope === "innovation-only" ? "科技预评分（偿债待补）" : "科技预评分"} · 等级{" "}
+            {evaluation.grade}
+          </div>
           <div className="mt-3">
             <Badge
               variant="outline"
@@ -84,6 +76,38 @@ export function CompanyDesk({
           </div>
         </div>
       </header>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <SummaryCard
+          eyebrow="证据状态"
+          title={financeComplete ? "偿债材料已录入" : "偿债材料待补"}
+          text={
+            financeComplete
+              ? `证据覆盖 ${evaluation.evidenceStatus?.coverage ?? 0}%，仍需人工核验原件。`
+              : `当前仅形成科技画像，缺 ${evaluation.evidenceStatus?.missingMaterials.length ?? 0} 类偿债材料。`
+          }
+          tone={financeComplete ? "normal" : "watch"}
+        />
+        <SummaryCard
+          eyebrow="科技预评分"
+          title={`${evaluation.composite} 分 · ${evaluation.grade} 级`}
+          text={
+            evaluation.scoreScope === "innovation-only"
+              ? "偿债维度未评分，结果只用于技术与创新线索排序。"
+              : "五维均已评分。分数不是违约概率、额度或估值。"
+          }
+        />
+        <SummaryCard
+          eyebrow="下一步"
+          title={evaluation.decision.title}
+          text={displayText(evaluation.decision.reason)}
+          tone={evaluation.decision.eligible ? "normal" : "watch"}
+        />
+      </section>
+
+      <p className="rounded-lg border border-[#eadfd4] bg-[#fbf6f1] px-3 py-2 text-xs leading-5 text-[#6f655e]">
+        评估时点 {evaluation.meta?.asOf ?? "未记录"}。权属与偿债状态按已录入材料采用，尚未对接外部核验来源。预审建议不等于授信通过，不测算额度或估值。
+      </p>
 
       <section className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
@@ -124,7 +148,7 @@ export function CompanyDesk({
             <CardTitle>规则结论</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm leading-6">{evaluation.decision.reason}</p>
+            <p className="text-sm leading-6">{displayText(evaluation.decision.reason)}</p>
             <Separator />
             <p className="text-xs font-medium tracking-wide text-[#6f655e]">客户经理下一步</p>
             <ol className="list-decimal space-y-2 pl-4 text-sm leading-6">
@@ -148,7 +172,7 @@ export function CompanyDesk({
             >
               <div>
                 <div className="text-sm font-medium">{check.label}</div>
-                <p className="text-xs leading-5 text-[#6f655e]">{check.detail}</p>
+                <p className="text-xs leading-5 text-[#6f655e]">{displayText(check.detail)}</p>
               </div>
               <Badge variant={check.pass ? "secondary" : "destructive"}>
                 {check.pass ? "通过" : "未过"}
@@ -173,12 +197,15 @@ export function CompanyDesk({
           />
           <p className="text-sm leading-6 text-[#3f342e]">
             {focusedRight
-              ? `${focusedRight.id}《${focusedRight.title}》。${kindLabel[focusedRight.kind]}，${statusLabel[focusedRight.status]}，${focusedRight.ipc} ${focusedRight.ipcTitle}。${
-                  focusedRight.dispute ??
-                  (pledgeable.has(focusedRight.id)
-                    ? "这件权利进入了可质押清单。"
-                    : "这件权利没有进入可质押清单。")
+              ? `${displayRightId(focusedRight.id)}《${focusedRight.title}》。${kindLabel[focusedRight.kind]}，${statusLabel[focusedRight.status]}，${focusedRight.ipc} ${focusedRight.ipcTitle}。${
+                  focusedRight.dispute
+                    ? displayText(focusedRight.dispute)
+                    : pledgeable.has(focusedRight.id)
+                      ? "这件权利进入了可质押清单。"
+                      : "这件权利没有进入可质押清单。"
                 }`
+              : focusedEvidence
+                ? `${displayText(focusedEvidence.title)}：${displayText(focusedEvidence.fact)} 来源：${focusedEvidence.sourceLabel}；证据状态：${focusedEvidence.status}；时点：${focusedEvidence.asOf}。`
               : "点选图谱或下方编号，查看这件权利为什么进入或没有进入质押清单。红色描边表示权属争议，虚线色块表示在审或失效。"}
           </p>
         </CardContent>
@@ -195,7 +222,7 @@ export function CompanyDesk({
               <div className="mt-2 space-y-3">
                 {block.paragraphs.map((paragraph) => (
                   <div key={paragraph.text}>
-                    <p className="text-sm leading-7">{paragraph.text}</p>
+                    <p className="text-sm leading-7">{displayText(paragraph.text)}</p>
                     {paragraph.evidence.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {paragraph.evidence.map((id) => (
@@ -209,7 +236,7 @@ export function CompanyDesk({
                                 : "border-[#eadfd4] text-[#6f655e]"
                             }`}
                           >
-                            {id}
+                            {displayRightId(id)}
                           </button>
                         ))}
                       </div>
@@ -219,8 +246,6 @@ export function CompanyDesk({
               </div>
             </section>
           ))}
-          <Separator />
-          <p className="text-xs leading-5 text-[#6f655e]">{modelContract}</p>
         </CardContent>
       </Card>
 
@@ -248,11 +273,11 @@ export function CompanyDesk({
                   className={focus === right.id ? "bg-[#fff1f2]" : undefined}
                   onClick={() => setFocus(right.id)}
                 >
-                  <TableCell className="font-mono text-xs">{right.id}</TableCell>
+                  <TableCell className="text-xs">{displayRightId(right.id)}</TableCell>
                   <TableCell>
                     <div>{right.title}</div>
                     {right.dispute && (
-                      <div className="mt-1 text-xs text-[#9d1c2f]">{right.dispute}</div>
+                      <div className="mt-1 text-xs text-[#9d1c2f]">{displayText(right.dispute)}</div>
                     )}
                   </TableCell>
                   <TableCell>{kindLabel[right.kind]}</TableCell>
@@ -289,7 +314,7 @@ export function CompanyDesk({
                       {factor.weight > 0 ? `权重 ${Math.round(factor.weight * 100)}% · ` : ""}
                       {factor.score}
                     </span>
-                    <div className="text-xs leading-5 text-[#6f655e]">{factor.detail}</div>
+                    <div className="text-xs leading-5 text-[#6f655e]">{displayText(factor.detail)}</div>
                   </li>
                 ))}
               </ul>
@@ -298,39 +323,32 @@ export function CompanyDesk({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>队列对照</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {peers.map((peer) => (
-            <Link
-              key={peer.id}
-              href={`/company/${peer.id}`}
-              className={`rounded-lg border px-3 py-2 ${
-                peer.id === company.id ? "border-[#9d1c2f] bg-[#fff6f6]" : "border-[#eadfd4]"
-              }`}
-            >
-              <div className="flex items-baseline justify-between">
-                <span className="font-medium">{peer.shortName}</span>
-                <span className="tabular-nums">
-                  {peer.composite} {peer.grade}
-                </span>
-              </div>
-              <div className="mt-1 text-xs text-[#6f655e]">
-                {productLabel[peer.product]} · {peer.title}
-              </div>
-            </Link>
-          ))}
-        </CardContent>
-      </Card>
+    </div>
+  )
+}
 
-      <details className="rounded-xl bg-white p-4 ring-1 ring-[#eadfd4]">
-        <summary className="cursor-pointer text-sm font-medium">查看送入大模型的证据包</summary>
-        <pre className="mt-3 overflow-x-auto text-xs leading-5 text-[#3f342e]">
-          {JSON.stringify(evaluation.evidencePack, null, 2)}
-        </pre>
-      </details>
+function SummaryCard({
+  eyebrow,
+  title,
+  text,
+  tone = "normal",
+}: {
+  eyebrow: string
+  title: string
+  text: string
+  tone?: "normal" | "watch"
+}) {
+  return (
+    <div
+      className={`rounded-xl border px-4 py-3 ${
+        tone === "watch"
+          ? "border-[#e2b7bd] bg-[#fff6f6]"
+          : "border-[#eadfd4] bg-white"
+      }`}
+    >
+      <p className="text-xs tracking-wide text-[#9d1c2f]">{eyebrow}</p>
+      <p className="mt-1 font-semibold">{title}</p>
+      <p className="mt-1 text-sm leading-6 text-[#5f554e]">{text}</p>
     </div>
   )
 }

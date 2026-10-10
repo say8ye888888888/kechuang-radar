@@ -18,9 +18,8 @@ export const companies: CompanyInput[] = [
     revenueBand: "60to150m",
     qualifications: ["littleGiant", "hightech"],
     strategicSector: "第三代半导体材料",
-    sectorOutlook: 86,
     summary:
-      "主营碳化硅衬底和外延片，客户集中在功率器件。权利集中在 H01L，发明授权连续，适合演示知识产权质押的进件前预审。",
+      "主营碳化硅衬底和外延片，客户集中在功率器件。权利集中在 H01L，近十年发明授权连续。",
     notes: [
       {
         id: "note-cc-1",
@@ -147,9 +146,8 @@ export const companies: CompanyInput[] = [
     revenueBand: "20to60m",
     qualifications: ["specialized", "hightech"],
     strategicSector: "工业软件",
-    sectorOutlook: 84,
     summary:
-      "为离散制造车间提供排程和设备稼动分析。发明数量不多，软著与主营一致，适合演示科技信用贷而不是专利质押。",
+      "为离散制造车间提供排程和设备稼动分析。发明数量不多，软著登记与主营一致。",
     notes: [
       {
         id: "note-zh-1",
@@ -235,9 +233,8 @@ export const companies: CompanyInput[] = [
     revenueBand: "20to60m",
     qualifications: ["hightech", "specialized"],
     strategicSector: "生物医药",
-    sectorOutlook: 80,
     summary:
-      "布局抗体偶联药物连接子。发明质量高，但一件核心专利进入无效宣告，规则应停止产品推荐。",
+      "布局抗体偶联药物连接子。发明集中在连接方法和制剂，其中一件核心专利已进入无效宣告。",
     notes: [
       {
         id: "note-lx-1",
@@ -320,14 +317,13 @@ export const companies: CompanyInput[] = [
     revenueBand: "20to60m",
     qualifications: ["hightech"],
     strategicSector: "新能源材料",
-    sectorOutlook: 76,
     summary:
-      "从事锂电池隔膜涂覆。权利数量中等，但核心专利共有权未书面同意，另一件年费逾期。",
+      "从事锂电池隔膜涂覆。发明数量不多，一件为共有专利，另一件存在年费逾期。",
     notes: [
       {
         id: "note-jm-1",
-        level: "block",
-        text: "共有权人未出具质押同意函。按知识产权质押的一般要求，不能只凭申请书推进。",
+        level: "watch",
+        text: "共有权人未出具质押同意函。这件专利不能计入可质押清单，不因此停止整户预审。",
       },
     ],
     rights: [
@@ -408,14 +404,13 @@ export const companies: CompanyInput[] = [
     revenueBand: "unknown",
     qualifications: ["hightech"],
     strategicSector: "低空经济与航空器控制",
-    sectorOutlook: 83,
     summary:
       "做电动垂直起降飞行器的飞控软件。近两年申请密集，但多数发明在审，营收未披露，只能补充调查。",
     notes: [
       {
         id: "note-hs-1",
         level: "watch",
-        text: "高新证书在样本中记为有效。成立时间短，认定材料要和实际研发费用一起看。",
+        text: "高新证书记为有效。成立时间短，认定材料要和实际研发费用一起看。",
       },
     ],
     rights: [
@@ -492,9 +487,8 @@ export const companies: CompanyInput[] = [
     revenueBand: "60to150m",
     qualifications: [],
     strategicSector: "海洋工程装备",
-    sectorOutlook: 58,
     summary:
-      "传统海洋装备制造，营收不低，但专利以早期实用新型为主，发明已失效。用来演示“有收入不等于有科技信用”。",
+      "传统海洋装备制造，营收规模不低。专利以早期实用新型为主，发明已失效。",
     notes: [
       {
         id: "note-hy-1",

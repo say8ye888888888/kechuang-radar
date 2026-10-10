@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { displayText } from "@/lib/display"
 import { productLabel } from "@/lib/labels"
 import type { Evaluation, ProductCode } from "@/lib/types"
 
@@ -24,6 +25,29 @@ const filters: { id: "all" | ProductCode; label: string }[] = [
   { id: "investigate", label: "补充调查" },
   { id: "decline", label: "暂不建议" },
 ]
+
+function blockerOf(item: Evaluation) {
+  if (item.decision.product === "patent-loan") return "可进入下一步核验"
+  if (item.decision.product === "credit-loan") {
+    const gate = item.ruleChecks.find(
+      (check) =>
+        !check.pass &&
+        (check.reasonCode === "PLEDGEABLE_COUNT" ||
+          check.reasonCode === "PATENT_TECH_THRESHOLD" ||
+          check.reasonCode === "PATENT_RISK_THRESHOLD" ||
+          check.reasonCode === "PATENT_FINANCE_THRESHOLD"),
+    )
+    return gate?.label ?? "可进入下一步核验"
+  }
+  const matched = item.ruleChecks.find(
+    (check) => !check.pass && check.reasonCode === item.decision.reasonCode,
+  )
+  return displayText(matched?.detail ?? item.decision.reason)
+}
+
+function scopeLabel(item: Evaluation) {
+  return item.scoreScope === "innovation-only" ? "偿债待补" : "五维"
+}
 
 function decisionVariant(product: ProductCode) {
   if (product === "patent-loan") return "default" as const
@@ -53,7 +77,7 @@ export function Queue({ items }: { items: Evaluation[] }) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索企业、城市或产业"
-          aria-label="搜索预审队列"
+          aria-label="搜索待预审企业"
           className="h-9 bg-white sm:max-w-xs"
         />
         <div className="flex flex-wrap gap-1.5">
@@ -72,78 +96,108 @@ export function Queue({ items }: { items: Evaluation[] }) {
 
       {visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#ddcfc3] bg-white px-4 py-10 text-center text-sm text-[#6f655e]">
-          队列里没有匹配的企业。清空搜索，或换一个产业名。
+          没有匹配的企业。清空搜索，或换一个名称、城市、产业。
         </div>
       ) : (
-        <>
-          <div className="hidden md:block">
-            <Table className="table-fixed">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[22%]">企业</TableHead>
-                  <TableHead className="w-[16%]">产业</TableHead>
-                  <TableHead className="w-[12%]">科技信用分</TableHead>
-                  <TableHead className="w-[14%]">预审结论</TableHead>
-                  <TableHead>主要卡点</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((item) => (
-                  <TableRow key={item.company.id}>
-                    <TableCell>
-                      <Link href={`/company/${item.company.id}`} className="font-medium hover:underline">
-                        {item.company.shortName}
-                      </Link>
-                      <div className="text-xs text-[#6f655e]">
-                        {item.company.city} · {item.company.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>{item.company.strategicSector}</TableCell>
-                    <TableCell>
-                      <span className="font-semibold tabular-nums">{item.composite}</span>
-                      <span className="ml-2 text-xs text-[#6f655e]">{item.grade}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={decisionVariant(item.decision.product)}>
-                        {productLabel[item.decision.product]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-normal text-[#3f342e]">
-                      {item.riskNotes[0]?.detail}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <ul className="space-y-3 md:hidden">
-            {visible.map((item) => (
-              <li key={item.company.id} className="rounded-xl bg-white p-4 ring-1 ring-[#eadfd4]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <Link href={`/company/${item.company.id}`} className="font-medium">
-                      {item.company.shortName}
-                    </Link>
-                    <p className="text-xs text-[#6f655e]">
-                      {item.company.city} · {item.company.strategicSector}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold tabular-nums">{item.composite}</div>
-                    <div className="text-xs text-[#6f655e]">等级 {item.grade}</div>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <Badge variant={decisionVariant(item.decision.product)}>
-                    {item.decision.title}
-                  </Badge>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-[#3f342e]">{item.riskNotes[0]?.detail}</p>
-              </li>
-            ))}
-          </ul>
-        </>
+        <div className="space-y-6">
+          <ScoreGroup
+            title="五维已评"
+            hint="偿债材料已录入，分数可以互相比较。"
+            items={visible.filter((item) => item.scoreScope !== "innovation-only")}
+          />
+          <ScoreGroup
+            title="偿债待补"
+            hint="财务维度未评分，不能和上面的五维分数横比。"
+            items={visible.filter((item) => item.scoreScope === "innovation-only")}
+          />
+        </div>
       )}
     </div>
+  )
+}
+
+function ScoreGroup({
+  title,
+  hint,
+  items,
+}: {
+  title: string
+  hint: string
+  items: Evaluation[]
+}) {
+  if (items.length === 0) return null
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="text-xs text-[#6f655e]">{hint}</p>
+      </div>
+      <div className="hidden md:block">
+        <Table className="table-fixed">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[22%]">企业</TableHead>
+              <TableHead className="w-[16%]">产业</TableHead>
+              <TableHead className="w-[14%]">科技预评分</TableHead>
+              <TableHead className="w-[14%]">预审结论</TableHead>
+              <TableHead>主要卡点</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.company.id}>
+                <TableCell>
+                  <Link href={`/company/${item.company.id}`} className="font-medium hover:underline">
+                    {item.company.shortName}
+                  </Link>
+                  <div className="text-xs text-[#6f655e]">
+                    {item.company.city} · {item.company.name}
+                  </div>
+                </TableCell>
+                <TableCell>{item.company.strategicSector}</TableCell>
+                <TableCell>
+                  <span className="font-semibold tabular-nums">{item.composite}</span>
+                  <span className="ml-2 text-xs text-[#6f655e]">
+                    {item.grade} · {scopeLabel(item)}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={decisionVariant(item.decision.product)}>
+                    {productLabel[item.decision.product]}
+                  </Badge>
+                </TableCell>
+                <TableCell className="whitespace-normal text-[#3f342e]">{blockerOf(item)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <ul className="space-y-3 md:hidden">
+        {items.map((item) => (
+          <li key={item.company.id} className="rounded-xl bg-[#fbf6f1] p-4 ring-1 ring-[#eadfd4]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <Link href={`/company/${item.company.id}`} className="font-medium">
+                  {item.company.shortName}
+                </Link>
+                <p className="text-xs text-[#6f655e]">
+                  {item.company.city} · {item.company.strategicSector}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-semibold tabular-nums">{item.composite}</div>
+                <div className="text-xs text-[#6f655e]">
+                  {item.grade} · {scopeLabel(item)}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              <Badge variant={decisionVariant(item.decision.product)}>{item.decision.title}</Badge>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-[#3f342e]">{blockerOf(item)}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
