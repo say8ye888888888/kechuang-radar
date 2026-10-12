@@ -92,7 +92,7 @@ export function BatchImport() {
 
       {loading && results && (
         <p className="text-sm text-[#6f655e]">
-          已完成 {finished} / {results.length} 家。已入库的会立即返回，新企业由大模型收集。
+          已完成 {finished} / {results.length} 家。已有报告的企业会立即完成，新企业需要逐家生成。
         </p>
       )}
 

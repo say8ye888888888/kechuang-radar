@@ -55,7 +55,7 @@ export function CompanySearch() {
 
       {loading && (
         <p className="text-sm text-[#6f655e]">
-          正在查找已有评估。若是新企业，大模型联网收集专利、财务等数据，约需 10-30 秒…
+          正在为你准备预审报告。首次查询的企业约需 10-30 秒，请稍候…
         </p>
       )}
 

@@ -31,10 +31,16 @@ export function EvidenceGraph({
   }
   const inventors = [...inventorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
   const row = 62
-  const height = Math.max(280, 36 + rights.length * row)
+  // 高度需同时容纳三列内容：专利列、发明人列（含顶部产业节点）与边距
+  const height = Math.max(
+    300,
+    48 + rights.length * row,
+    150 + inventors.length * 36,
+  )
   const yOf = (index: number) => 28 + index * row
+  // IPC 节点高 40，分布区间需预留节点自身高度与底部边距，避免最后一个节点被裁
   const ipcY = (index: number) =>
-    28 + index * ((height - 56) / Math.max(ipcs.length - 1, 1))
+    28 + index * ((height - 92) / Math.max(ipcs.length - 1, 1))
 
   const active =
     focus == null
@@ -75,7 +81,7 @@ export function EvidenceGraph({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="max-h-[520px] overflow-auto rounded-lg">
       <svg viewBox={`0 0 980 ${height}`} className="h-auto min-w-[760px]" role="img">
         <title>{`${company.shortName}的专利知识图谱`}</title>
         <line
