@@ -16,12 +16,12 @@ function today() {
 
 /**
  * Search orchestration:
- * 1. Check SQLite store for previously collected company by name
+ * 1. Check the JSON store for a previously collected company by name
  * 2. Check demo repository by name
  * 3. Call LLM collector to gather company info
  * 4. Evaluate via evaluateSubmittedCompany (bypasses AS_OF with today)
- * 5. Persist to SQLite store
- * 6. Log search history
+ * 5. Persist to the JSON store
+ * Cache hits return immediately. History is recorded only for a new collection or a failure.
  */
 export async function searchCompany(name: string): Promise<SearchResult> {
   const trimmed = name.trim()
@@ -31,27 +31,15 @@ export async function searchCompany(name: string): Promise<SearchResult> {
 
   const asOf = today()
 
-  // 1. Check SQLite store (previously collected by LLM)
+  // 1. Check the JSON store (previously collected by LLM)
   const stored = await evaluationStore.findByName(trimmed)
   if (stored) {
-    db.addSearchHistory({
-      queryName: trimmed,
-      companyId: stored.companyId,
-      status: "found_collected",
-      errorMessage: null,
-    })
     return { status: "found_collected", companyId: stored.companyId }
   }
 
   // 2. Check demo repository
   const demoCompany = await companyRepository.findByName(trimmed)
   if (demoCompany) {
-    db.addSearchHistory({
-      queryName: trimmed,
-      companyId: demoCompany.id,
-      status: "found_demo",
-      errorMessage: null,
-    })
     return { status: "found_demo", companyId: demoCompany.id }
   }
 
@@ -70,11 +58,8 @@ export async function searchCompany(name: string): Promise<SearchResult> {
   // 4. Evaluate (bypasses AS_OF — uses today as the evaluation date)
   const evaluation = evaluateSubmittedCompany(collection.company, { asOf })
 
-  // 5. Persist to SQLite
-  await evaluationStore.save(collection.company, evaluation, asOf)
-
-  // 6. Log
-  db.addSearchHistory({
+  // 5. Persist the company and the miss log in one write
+  await evaluationStore.save(collection.company, evaluation, asOf, {
     queryName: trimmed,
     companyId: collection.company.id,
     status: "collected_by_llm",

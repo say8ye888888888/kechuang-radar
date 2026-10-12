@@ -1,11 +1,19 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { uniqueCompanyNames } from "@/lib/company-name"
+import { requestCompanySearch } from "@/lib/search-client"
+
+const BATCH_LIMIT = 50
+const CONCURRENCY = 2
 
 type BatchResult = { name: string; status: string; companyId?: string; error?: string }
+
+function lineCount(text: string) {
+  return text.split("\n").filter((line) => line.trim().length > 0).length
+}
 
 export function BatchImport() {
   const router = useRouter()
@@ -13,30 +21,48 @@ export function BatchImport() {
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<BatchResult[] | null>(null)
 
-  const names = text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+  const names = useMemo(() => uniqueCompanyNames(text.split("\n")), [text])
+  const entered = lineCount(text)
+  const overLimit = names.length > BATCH_LIMIT
 
   async function handleSubmit() {
-    if (names.length === 0 || loading) return
+    if (names.length === 0 || names.length > BATCH_LIMIT || loading) return
+    const queue = names
     setLoading(true)
-    setResults(null)
+    setResults(queue.map((name) => ({ name, status: "pending" })))
+
+    let cursor = 0
+    async function worker() {
+      while (cursor < queue.length) {
+        const index = cursor++
+        const name = queue[index]
+        setResults((current) =>
+          current?.map((item, itemIndex) =>
+            itemIndex === index ? { ...item, status: "running" } : item,
+          ) ?? current,
+        )
+        const result = await requestCompanySearch(name)
+        setResults((current) =>
+          current?.map((item, itemIndex) => {
+            if (itemIndex !== index) return item
+            return result.ok
+              ? { name, status: result.status, companyId: result.companyId }
+              : { name, status: "failed", error: result.error }
+          }) ?? current,
+        )
+      }
+    }
 
     try {
-      const res = await fetch("/api/search/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ names }),
-      })
-      const json = await res.json()
-      setResults(json.data?.results ?? [])
-    } catch {
-      setResults([{ name: "", status: "failed", error: "网络错误" }])
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, queue.length) }, () => worker()),
+      )
     } finally {
       setLoading(false)
     }
   }
+
+  const finished = results?.filter((item) => item.status !== "pending" && item.status !== "running").length ?? 0
 
   return (
     <div className="space-y-4">
@@ -49,18 +75,24 @@ export function BatchImport() {
         disabled={loading}
       />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-[#6f655e]">
-          {names.length > 0 ? `共 ${names.length} 家企业待导入` : "请输入企业名称"}
+          {names.length === 0
+            ? "请输入企业名称"
+            : overLimit
+              ? `去重后 ${names.length} 家，单次最多导入 ${BATCH_LIMIT} 家`
+              : entered === names.length
+                ? `共 ${names.length} 家企业待导入`
+                : `输入 ${entered} 行，去重后 ${names.length} 家`}
         </p>
-        <Button onClick={handleSubmit} disabled={loading || names.length === 0}>
+        <Button onClick={handleSubmit} disabled={loading || names.length === 0 || overLimit}>
           {loading ? "正在导入..." : "开始批量导入"}
         </Button>
       </div>
 
-      {loading && (
+      {loading && results && (
         <p className="text-sm text-[#6f655e]">
-          大模型逐个收集企业信息，每家约 10-30 秒，请耐心等待…
+          已完成 {finished} / {results.length} 家。已入库的会立即返回，新企业由大模型收集。
         </p>
       )}
 
@@ -84,10 +116,14 @@ export function BatchImport() {
               </thead>
               <tbody className="divide-y divide-[#eadfd4] bg-white">
                 {results.map((r, i) => (
-                  <tr key={i}>
+                  <tr key={`${r.name}-${i}`}>
                     <td className="px-3 py-2">{r.name}</td>
                     <td className="px-3 py-2">
-                      {r.status === "failed" ? (
+                      {r.status === "pending" ? (
+                        <span className="text-[#6f655e]">等待中</span>
+                      ) : r.status === "running" ? (
+                        <span className="text-[#6f655e]">查找中</span>
+                      ) : r.status === "failed" ? (
                         <span className="text-[#9d1c2f]">失败：{r.error}</span>
                       ) : r.status === "found_demo" ? (
                         <span className="text-[#6f655e]">已有（Demo）</span>
@@ -113,9 +149,11 @@ export function BatchImport() {
             </table>
           </div>
 
-          <p className="text-xs text-[#6f655e]">
-            成功 {results.filter((r) => r.status !== "failed").length} / {results.length} 家
-          </p>
+          {!loading && (
+            <p className="text-xs text-[#6f655e]">
+              成功 {results.filter((r) => r.status !== "failed" && r.status !== "pending" && r.status !== "running").length} / {results.length} 家
+            </p>
+          )}
         </div>
       )}
     </div>

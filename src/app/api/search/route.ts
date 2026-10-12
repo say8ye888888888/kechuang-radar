@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { searchCompany } from "@/server/services/search-service"
 
+export const runtime = "nodejs"
+export const maxDuration = 60
+
 export async function POST(request: Request) {
   let body: { name?: unknown }
   try {

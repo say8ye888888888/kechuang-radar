@@ -1,5 +1,7 @@
-import { db } from "@/server/db/database"
+import { db, type SearchHistoryEntry } from "@/server/db/database"
 import type { CompanyInput, Evaluation } from "@/lib/types"
+
+type SearchHistoryInput = Omit<SearchHistoryEntry, "id" | "createdAt">
 
 /**
  * Persistent evaluation store backed by the JSON file database. Mirrors the
@@ -7,7 +9,12 @@ import type { CompanyInput, Evaluation } from "@/lib/types"
  * module without touching any caller.
  */
 export interface EvaluationStore {
-  save(company: CompanyInput, evaluation: Evaluation, asOf: string): Promise<void>
+  save(
+    company: CompanyInput,
+    evaluation: Evaluation,
+    asOf: string,
+    history?: SearchHistoryInput,
+  ): Promise<void>
   findEvaluation(companyId: string): Promise<Evaluation | null>
   findByName(name: string): Promise<{ companyId: string; company: CompanyInput } | null>
   listEvaluations(): Promise<Evaluation[]>
@@ -18,16 +25,20 @@ class JsonEvaluationStore implements EvaluationStore {
     company: CompanyInput,
     evaluation: Evaluation,
     asOf: string,
+    history?: SearchHistoryInput,
   ): Promise<void> {
-    db.upsertCompany({
-      id: company.id,
-      name: company.name,
-      shortName: company.shortName,
-      companyJson: JSON.stringify(company),
-      evaluationJson: JSON.stringify(evaluation),
-      asOf,
-      createdAt: new Date().toISOString(),
-    })
+    db.upsertCompany(
+      {
+        id: company.id,
+        name: company.name,
+        shortName: company.shortName,
+        companyJson: JSON.stringify(company),
+        evaluationJson: JSON.stringify(evaluation),
+        asOf,
+        createdAt: new Date().toISOString(),
+      },
+      history,
+    )
   }
 
   async findEvaluation(companyId: string): Promise<Evaluation | null> {

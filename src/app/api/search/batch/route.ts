@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server"
+import { uniqueCompanyNames } from "@/lib/company-name"
 import { searchCompany } from "@/server/services/search-service"
+
+export const runtime = "nodejs"
+export const maxDuration = 300
+
+const CONCURRENCY = 2
 
 export async function POST(request: Request) {
   let body: { names?: unknown }
@@ -10,10 +16,7 @@ export async function POST(request: Request) {
   }
 
   const raw = Array.isArray(body.names) ? body.names : []
-  const names = raw
-    .filter((n): n is string => typeof n === "string")
-    .map((n) => n.trim())
-    .filter((n) => n.length > 0)
+  const names = uniqueCompanyNames(raw.filter((name): name is string => typeof name === "string"))
 
   if (names.length === 0) {
     return NextResponse.json({ error: "企业名称列表不能为空" }, { status: 422 })
@@ -23,16 +26,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "单次最多导入 50 家企业" }, { status: 422 })
   }
 
-  // Process sequentially to avoid overwhelming the LLM API
-  const results: { name: string; status: string; companyId?: string; error?: string }[] = []
-  for (const name of names) {
-    const result = await searchCompany(name)
-    if (result.status === "failed") {
-      results.push({ name, status: "failed", error: result.error })
-    } else {
-      results.push({ name, status: result.status, companyId: result.companyId })
+  const results: { name: string; status: string; companyId?: string; error?: string }[] =
+    new Array(names.length)
+  let cursor = 0
+
+  async function worker() {
+    while (cursor < names.length) {
+      const index = cursor++
+      const name = names[index]
+      const result = await searchCompany(name)
+      results[index] =
+        result.status === "failed"
+          ? { name, status: "failed", error: result.error }
+          : { name, status: result.status, companyId: result.companyId }
     }
   }
+
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, names.length) }, () => worker()),
+  )
 
   return NextResponse.json({ data: { results } })
 }

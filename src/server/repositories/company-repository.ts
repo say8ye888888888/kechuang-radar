@@ -1,3 +1,4 @@
+import { matchCompanyRecord } from "@/lib/company-name"
 import { companies } from "@/lib/companies"
 import { enrichDemoCompany } from "@/lib/demo-data"
 import type { CompanyInput } from "@/lib/types"
@@ -51,12 +52,7 @@ class DemoCompanyRepository implements CompanyRepository {
   }
 
   async findByName(name: string) {
-    const lower = name.trim().toLowerCase()
-    const company = companies.find(
-      (item) =>
-        item.name.toLowerCase() === lower ||
-        item.shortName.toLowerCase() === lower,
-    )
+    const company = matchCompanyRecord(name, companies)
     return company ? cloneCompany(storedCompany(company)) : null
   }
 }

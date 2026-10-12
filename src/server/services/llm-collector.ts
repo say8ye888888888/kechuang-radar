@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import { canonicalCompanyName } from "@/lib/company-name"
 import { validateCompanyInput } from "@/server/validation/company-input"
 import { SECTOR_SCORES } from "@/lib/rules"
 import type {
@@ -27,7 +28,7 @@ function hashName(name: string) {
 }
 
 function companyId(name: string) {
-  return `llm-${hashName(name).slice(0, 8)}`
+  return `llm-${hashName(canonicalCompanyName(name)).slice(0, 8)}`
 }
 
 function ownerCode(name: string) {
@@ -282,6 +283,12 @@ function postProcess(
   }
 }
 
+const COLLECT_TIMEOUT_MS = 25_000
+
+type CollectAttempt =
+  | { success: true; company: CompanyInput }
+  | { success: false; error: string; retry: boolean }
+
 class DeepSeekCollector implements CompanyInfoCollector {
   private apiKey: string
   private baseUrl: string
@@ -293,58 +300,87 @@ class DeepSeekCollector implements CompanyInfoCollector {
     this.model = process.env.DEEPSEEK_MODEL || "deepseek-chat"
   }
 
+  private async requestOnce(name: string): Promise<CollectAttempt> {
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `企业名称：${name}` },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 4096,
+      }),
+      signal: AbortSignal.timeout(COLLECT_TIMEOUT_MS),
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      console.error(`[DeepSeek] API error ${response.status}: ${text}`)
+      return {
+        success: false,
+        error: `大模型接口返回 ${response.status}`,
+        retry: response.status >= 500 || response.status === 429,
+      }
+    }
+
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content
+    if (!content) {
+      return { success: false, error: "大模型没有返回企业信息", retry: true }
+    }
+
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(content) as Record<string, unknown>
+    } catch {
+      return { success: false, error: "大模型返回的不是有效 JSON", retry: true }
+    }
+
+    const company = postProcess(parsed, name)
+    const validation = validateCompanyInput(company)
+    if (!validation.success) {
+      console.error(
+        "[DeepSeek] validation failed:",
+        validation.issues.map((i) => `${i.path}: ${i.message}`).join("; "),
+      )
+      return {
+        success: false,
+        error: `数据校验失败: ${validation.issues.map((i) => i.message).join("; ")}`,
+        retry: true,
+      }
+    }
+
+    return { success: true, company: validation.data }
+  }
+
   async collectCompanyInfo(name: string): Promise<CollectionResult> {
     if (!this.apiKey) {
       return mockCollector.collectCompanyInfo(name)
     }
 
-    try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `企业名称：${name}` },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.7,
-          max_tokens: 4096,
-        }),
-      })
-
-      if (!response.ok) {
-        const text = await response.text()
-        console.error(`[DeepSeek] API error ${response.status}: ${text}`)
-        return mockCollector.collectCompanyInfo(name)
+    let lastError = "收集企业信息失败"
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const result = await this.requestOnce(name)
+        if (result.success) return { success: true, company: result.company }
+        lastError = result.error
+        if (!result.retry) return { success: false, error: lastError }
+      } catch (err) {
+        const timedOut =
+          err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
+        lastError = timedOut ? "大模型收集超时，请稍后重试" : "大模型收集失败，请稍后重试"
+        console.error("[DeepSeek] collector error:", err)
       }
-
-      const data = await response.json()
-      const content = data.choices?.[0]?.message?.content
-      if (!content) {
-        return mockCollector.collectCompanyInfo(name)
-      }
-
-      const parsed = JSON.parse(content) as Record<string, unknown>
-      const company = postProcess(parsed, name)
-      const validation = validateCompanyInput(company)
-      if (!validation.success) {
-        console.error(
-          "[DeepSeek] validation failed:",
-          validation.issues.map((i) => `${i.path}: ${i.message}`).join("; "),
-        )
-        return mockCollector.collectCompanyInfo(name)
-      }
-
-      return { success: true, company: validation.data }
-    } catch (err) {
-      console.error("[DeepSeek] collector error:", err)
-      return mockCollector.collectCompanyInfo(name)
     }
+
+    return { success: false, error: lastError }
   }
 }
 

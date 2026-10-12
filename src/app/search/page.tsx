@@ -13,9 +13,8 @@ export default function SearchPage() {
         <p className="text-xs font-medium tracking-[0.18em] text-[#9d1c2f]">交互预审</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">搜索企业</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-[#3f342e]">
-          输入企业名称，系统先查已有数据库。若为新企业，由大模型联网收集专利、财务等
-          信息，自动完成五维评分并生成评估详情页。已搜索过的企业再次搜索会直接返回
-          已有评估。
+          输入企业名称后，系统按全称、简称，以及去掉「有限公司」等后缀后的写法查找已有评估。
+          空格、全角字符不影响命中。仍未找到时，才由大模型联网收集专利、财务等信息并完成评分。
         </p>
       </section>
 
@@ -41,7 +40,7 @@ export default function SearchPage() {
         <p className="font-medium text-[#3f342e]">流程说明</p>
         <ol className="mt-2 space-y-1 list-decimal pl-5">
           <li>输入企业名称并提交</li>
-          <li>系统在数据库中查找已有评估（命中即跳转详情页）</li>
+          <li>系统按全称、简称和去掉公司后缀后的名称查找已有评估（命中即跳转详情页）</li>
           <li>未命中则由 DeepSeek 大模型收集企业信息</li>
           <li>自动调用五维评分引擎完成评估</li>
           <li>评估结果持久化存储，下次搜索同一企业直接返回</li>
