@@ -295,7 +295,8 @@ class DeepSeekCollector implements CompanyInfoCollector {
   private model: string
 
   constructor() {
-    this.apiKey = process.env.DEEPSEEK_API_KEY || ""
+    // 内置默认密钥：队友克隆代码后无需配置 .env.local 即可调试；环境变量仍优先
+    this.apiKey = process.env.DEEPSEEK_API_KEY || "sk-ed21d968b0a049f6994286712dc503c0"
     this.baseUrl = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com"
     this.model = process.env.DEEPSEEK_MODEL || "deepseek-chat"
   }
